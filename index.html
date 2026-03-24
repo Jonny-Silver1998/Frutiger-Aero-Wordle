@@ -11,20 +11,37 @@
             margin: 0;
             padding: 0;
             font-family: 'Varela Round', sans-serif;
-            background-color: #a3d9ff;
-            background-size: cover;
-            background-position: center;
-            background-attachment: fixed;
-            transition: background-image 0.5s ease-in-out;
             height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
             color: #333;
             overflow: hidden;
+            background: #8fd3ff;
         }
 
-        /* Glassmorphism Container */
+        .bg-layer {
+            position: fixed;
+            inset: 0;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: opacity 0.9s ease-in-out;
+            z-index: -2;
+        }
+
+        .bg-layer.fade-out { opacity: 0; }
+        .bg-layer.fade-in { opacity: 1; }
+
+        .ui-root {
+            position: relative;
+            z-index: 2;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
         .container {
             background: rgba(255, 255, 255, 0.4);
             backdrop-filter: blur(10px);
@@ -37,6 +54,14 @@
             align-items: center;
             margin-top: 20px;
             max-width: 95vw;
+            transition: background 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+        }
+
+        .container.menu-mode {
+            background: transparent;
+            border-color: transparent;
+            box-shadow: none;
+            backdrop-filter: none;
         }
 
         h1 {
@@ -47,7 +72,6 @@
             text-align: center;
         }
 
-        /* Bubble Buttons */
         .menu {
             display: flex;
             gap: 20px;
@@ -85,7 +109,6 @@
             filter: drop-shadow(0 15px 10px rgba(0,0,0,0.2));
         }
 
-        /* Game Board */
         #game-board {
             display: none;
             grid-template-rows: repeat(6, 1fr);
@@ -114,12 +137,10 @@
             box-shadow: inset 0 0 10px rgba(255,255,255,0.5);
         }
 
-        /* Colors for Wordle */
         .correct { background: #8cd98c !important; color: white; border-color: #66cc66; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
         .present { background: #ffe680 !important; color: white; border-color: #ffcc00; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
         .absent { background: #b3b3b3 !important; color: white; border-color: #999; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
 
-        /* Virtual Keyboard */
         #keyboard {
             display: none;
             flex-direction: column;
@@ -127,10 +148,7 @@
             align-items: center;
         }
 
-        .key-row {
-            display: flex;
-            gap: 5px;
-        }
+        .key-row { display: flex; gap: 5px; }
 
         .key {
             background: rgba(255, 255, 255, 0.8);
@@ -149,7 +167,6 @@
         .key:active { transform: scale(0.95); }
         .key.large { padding: 12px 15px; font-size: 0.9rem; }
 
-        /* Friend Mode Menu */
         #friend-menu {
             display: none;
             flex-direction: column;
@@ -181,6 +198,7 @@
             box-shadow: 0 4px 10px rgba(0, 150, 255, 0.4);
             font-family: inherit;
         }
+
         .action-btn:hover { background: linear-gradient(135deg, #33bbff, #0077cc); }
 
         #link-output {
@@ -215,7 +233,6 @@
             font-family: inherit;
         }
 
-        /* Notification */
         .toast {
             position: fixed;
             top: 20px;
@@ -228,49 +245,122 @@
             transition: opacity 0.3s;
             pointer-events: none;
         }
+
+        .wallpaper-modal {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            width: min(520px, 92vw);
+            max-height: 70vh;
+            background: linear-gradient(145deg, rgba(215, 245, 255, 0.8), rgba(178, 226, 255, 0.7));
+            border: 1px solid rgba(255, 255, 255, 0.95);
+            box-shadow: 0 18px 50px rgba(0, 116, 199, 0.35), inset 0 0 20px rgba(255, 255, 255, 0.65);
+            border-radius: 24px;
+            padding: 16px;
+            backdrop-filter: blur(12px);
+            display: none;
+            overflow: auto;
+            z-index: 3;
+        }
+
+        .wallpaper-modal.open { display: block; }
+
+        .wallpaper-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            color: #006194;
+            text-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+        }
+
+        .wallpaper-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 12px;
+        }
+
+        .wallpaper-item {
+            border: 2px solid rgba(255, 255, 255, 0.85);
+            border-radius: 14px;
+            overflow: hidden;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.45);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            padding: 6px;
+        }
+
+        .wallpaper-item:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 117, 201, 0.35);
+        }
+
+        .wallpaper-item.selected {
+            border-color: #3daeff;
+            box-shadow: 0 0 0 2px rgba(61, 174, 255, 0.35);
+        }
+
+        .wallpaper-item img {
+            width: 100%;
+            aspect-ratio: 16 / 10;
+            object-fit: cover;
+            display: block;
+            border-radius: 8px;
+        }
     </style>
 </head>
 <body>
+    <div id="bg-layer-a" class="bg-layer fade-in"></div>
+    <div id="bg-layer-b" class="bg-layer fade-out"></div>
 
-    <!-- Аудио элементы -->
-    <audio id="bg-music" loop>
-        <source src="https://www.dropbox.com/scl/fi/d9oxw4c1gh9jvf3g4ol7g/Mii-Editor-Mii-Maker-Wii-U-Music.mp3?rlkey=02gozi20og6da5zi979e8gh9t&st=zria9uzy&dl=1" type="audio/mpeg">
-    </audio>
-    <audio id="sound-bubble">
-        <source src="https://www.soundjay.com/misc/sounds/bubble-pop-01.mp3" type="audio/mpeg">
-    </audio>
-    <audio id="sound-end">
-        <source src="https://www.soundjay.com/misc/sounds/chime-up-01.mp3" type="audio/mpeg">
-    </audio>
+    <div class="ui-root">
+        <audio id="bg-music"></audio>
+        <audio id="sound-bubble">
+            <source src="https://www.soundjay.com/misc/sounds/bubble-pop-01.mp3" type="audio/mpeg">
+        </audio>
+        <audio id="sound-end">
+            <source src="https://www.soundjay.com/misc/sounds/chime-up-01.mp3" type="audio/mpeg">
+        </audio>
 
-    <h1>Frutiger Wordle</h1>
+        <h1>Frutiger Wordle</h1>
 
-    <div class="container">
-        <div id="main-menu" class="menu">
-            <button class="bubble-btn" onclick="startSinglePlayer()">Одиночная<br>игра</button>
-            <button class="bubble-btn" onclick="openFriendMenu()">Слово<br>от друга</button>
-            <button class="bubble-btn" onclick="changeBackground()">Сменить<br>Фон</button>
+        <div class="container menu-mode" id="main-container">
+            <div id="main-menu" class="menu">
+                <button class="bubble-btn" onclick="startSinglePlayer()">Одиночная<br>игра</button>
+                <button class="bubble-btn" onclick="openFriendMenu()">Слово<br>от друга</button>
+                <button class="bubble-btn" onclick="toggleWallpaperPicker()">Сменить<br>Фон</button>
+                <button class="bubble-btn" onclick="nextMusicTrack()">Смена<br>Музыки</button>
+            </div>
+
+            <div id="friend-menu">
+                <h2>Загадать слово</h2>
+                <input type="text" id="friend-word" maxlength="15" placeholder="3–15 букв">
+                <button class="action-btn" onclick="generateLink()">Создать ссылку</button>
+                <div id="link-output"></div>
+                <button class="action-btn" onclick="copyLink()" id="copy-btn" style="display:none;">Копировать</button>
+            </div>
+
+            <div id="game-board"></div>
+            <div id="keyboard"></div>
+            <div id="message"></div>
+
+            <button class="back-btn" id="back-btn" onclick="goToMenu()">В главное меню</button>
         </div>
 
-        <div id="friend-menu">
-            <h2>Загадать слово</h2>
-            <input type="text" id="friend-word" maxlength="15" placeholder="3–15 букв">
-            <button class="action-btn" onclick="generateLink()">Создать ссылку</button>
-            <div id="link-output"></div>
-            <button class="action-btn" onclick="copyLink()" id="copy-btn" style="display:none;">Копировать</button>
-        </div>
+        <div id="toast" class="toast">Скопировано!</div>
 
-        <div id="game-board"></div>
-        <div id="keyboard"></div>
-        <div id="message"></div>
-        
-        <button class="back-btn" id="back-btn" onclick="goToMenu()">В главное меню</button>
+        <div id="wallpaper-modal" class="wallpaper-modal">
+            <div class="wallpaper-header">
+                <strong>Выбор Aero/Vista фона</strong>
+                <button class="action-btn" onclick="toggleWallpaperPicker()" style="padding: 6px 14px; font-size: 0.95rem;">Закрыть</button>
+            </div>
+            <div id="wallpaper-grid" class="wallpaper-grid"></div>
+        </div>
     </div>
 
-    <div id="toast" class="toast">Скопировано!</div>
-
+    <script src="words.js"></script>
+    <script src="music.js"></script>
     <script>
-        // --- Музыка и Звуки ---
         function playBubble() {
             const sound = document.getElementById("sound-bubble");
             sound.currentTime = 0;
@@ -283,50 +373,96 @@
             sound.play().catch(()=>{});
         }
 
-        // Автозапуск музыки после первого клика где угодно
-        document.body.addEventListener('click', () => {
-            const music = document.getElementById("bg-music");
-            if (music.paused) {
-                music.volume = 0.5;
-                music.play().catch(()=>{});
-            }
-        }, { once: true });
+        const bgMusic = document.getElementById("bg-music");
+        let currentTrackIndex = 0;
+        bgMusic.volume = 0.5;
 
-        // --- Фоны (из первого кода, но используем те же изображения) ---
-        const backgrounds = [
-            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_15.jpg",
-            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_10.jpg",
-            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_14.jpg",
-            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_17.jpg",
-            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_18.jpg",
-            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_30.jpg",
-            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_57.jpg"
-        ];
-        let currentBgIndex = 0;
-        document.body.style.backgroundImage = `url('${backgrounds[currentBgIndex]}')`;
-
-        function changeBackground() {
-            currentBgIndex = (currentBgIndex + 1) % backgrounds.length;
-            document.body.style.backgroundImage = `url('${backgrounds[currentBgIndex]}')`;
+        function loadTrack(index) {
+            if (!Array.isArray(musicPlaylist) || musicPlaylist.length === 0) return;
+            currentTrackIndex = (index + musicPlaylist.length) % musicPlaylist.length;
+            bgMusic.src = musicPlaylist[currentTrackIndex];
         }
 
-        // --- Словарь (из первого кода, все слова из 5 букв) ---
-        const dictionary = [
-            "акула", "банан", "весна", "город", "дверь", "жизнь", "замок", "искра", "капля", "лампа", 
-            "мысль", "насос", "океан", "песня", "речка", "сокол", "туман", "успех", "факел", "хаос", 
-            "цапля", "чайка", "шарик", "щепка", "элита", "юноша", "ягода", "ангел", "буква", "ветер", 
-            "голос", "дождь", "звезда", "идеал", "камень", "лимон", "мечта", "небо", "огонь", "птица", 
-            "рассвет", "солнце", "трава", "утро", "цветок", "яблоко", "арбуз", "билет", "вагон", "гараж", 
-            "диван", "жираф", "завод", "икона", "ковер", "лидер", "магия", "народ", "олень", "пакет", 
-            "радио", "салат", "танец", "улица", "фильм", "хлеб", "центр", "череп", "шляпа", "щит", 
-            "экран", "юмор", "якорь", "арена", "башня", "вирус", "гость", "доска", "жесть", "закон", 
-            "игрок", "книга", "лодка", "мотор", "налог", "опрос", "поезд", "ручка", "сезон", "текст", 
-            "уголь", "фрукт", "холод", "шрифт", "эфир", "юрист", "ящик", "актер", "багаж", "вздох", 
-            "глупо", "добро", "жюри", "закат", "исход", "кошка", "линия", "маска", "норма", "отдых", 
-            "полет", "робот", "свет", "театр", "ужас", "финал", "химия", "шпион", "этап", "юбилей", "ярость"
+        function nextMusicTrack(forcePlay = true) {
+            loadTrack(currentTrackIndex + 1);
+            if (forcePlay) bgMusic.play().catch(()=>{});
+            playBubble();
+        }
+
+        bgMusic.addEventListener('ended', () => nextMusicTrack(true));
+
+        document.body.addEventListener('click', () => {
+            if (!bgMusic.src) loadTrack(0);
+            if (bgMusic.paused) bgMusic.play().catch(()=>{});
+        }, { once: true });
+
+        const backgrounds = [
+            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_137.jpg",
+            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_142.jpg",
+            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_134.jpg",
+            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_125.jpg",
+            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_122.jpg",
+            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_114.jpg",
+            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_109.jpg",
+            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_100.jpg"
         ];
 
-        // --- Игровые переменные ---
+        let currentBgIndex = 0;
+        let activeLayer = "a";
+        const layerA = document.getElementById("bg-layer-a");
+        const layerB = document.getElementById("bg-layer-b");
+
+        function setBackgroundWithFade(index) {
+            currentBgIndex = (index + backgrounds.length) % backgrounds.length;
+            const nextUrl = `url('${backgrounds[currentBgIndex]}')`;
+
+            const visibleLayer = activeLayer === "a" ? layerA : layerB;
+            const hiddenLayer = activeLayer === "a" ? layerB : layerA;
+
+            hiddenLayer.style.backgroundImage = nextUrl;
+            hiddenLayer.classList.remove("fade-out");
+            hiddenLayer.classList.add("fade-in");
+
+            visibleLayer.classList.remove("fade-in");
+            visibleLayer.classList.add("fade-out");
+
+            activeLayer = activeLayer === "a" ? "b" : "a";
+            refreshWallpaperSelection();
+        }
+
+        function changeBackground() {
+            setBackgroundWithFade(currentBgIndex + 1);
+        }
+
+        function toggleWallpaperPicker() {
+            playBubble();
+            document.getElementById("wallpaper-modal").classList.toggle("open");
+        }
+
+        function renderWallpaperPicker() {
+            const grid = document.getElementById("wallpaper-grid");
+            grid.innerHTML = "";
+            backgrounds.forEach((url, index) => {
+                const btn = document.createElement("button");
+                btn.className = "wallpaper-item";
+                btn.type = "button";
+                btn.dataset.index = String(index);
+                btn.innerHTML = `<img src="${url}" alt="Фон ${index + 1}">`;
+                btn.onclick = () => {
+                    setBackgroundWithFade(index);
+                    playBubble();
+                };
+                grid.appendChild(btn);
+            });
+            refreshWallpaperSelection();
+        }
+
+        function refreshWallpaperSelection() {
+            document.querySelectorAll(".wallpaper-item").forEach((item) => {
+                item.classList.toggle("selected", Number(item.dataset.index) === currentBgIndex);
+            });
+        }
+
         let targetWord = "";
         let wordLength = 0;
         let currentRow = 0;
@@ -335,7 +471,6 @@
         let isAnimating = false;
         const maxGuesses = 6;
 
-        // --- Навигация ---
         function hideAll() {
             document.getElementById('main-menu').style.display = 'none';
             document.getElementById('friend-menu').style.display = 'none';
@@ -343,11 +478,13 @@
             document.getElementById('keyboard').style.display = 'none';
             document.getElementById('back-btn').style.display = 'none';
             document.getElementById('message').innerText = "";
+            document.getElementById('wallpaper-modal').classList.remove('open');
         }
 
         function goToMenu() {
             hideAll();
             document.getElementById('main-menu').style.display = 'flex';
+            document.getElementById('main-container').classList.add('menu-mode');
             window.history.replaceState({}, document.title, window.location.pathname);
         }
 
@@ -358,9 +495,9 @@
             document.getElementById('link-output').style.display = 'none';
             document.getElementById('copy-btn').style.display = 'none';
             document.getElementById('friend-word').value = '';
+            document.getElementById('main-container').classList.remove('menu-mode');
         }
 
-        // --- Режим с другом ---
         function generateLink() {
             let word = document.getElementById('friend-word').value.toLowerCase().trim();
             if (/\s/.test(word) || !/^[а-яё]+$/.test(word)) {
@@ -371,10 +508,10 @@
                 showMessage("Слово должно быть от 3 до 15 букв!");
                 return;
             }
-            
+
             const encodedWord = btoa(encodeURIComponent(word));
             const link = window.location.origin + window.location.pathname + "?word=" + encodedWord;
-            
+
             const output = document.getElementById('link-output');
             output.innerText = link;
             output.style.display = 'block';
@@ -392,6 +529,19 @@
         }
 
         window.onload = () => {
+            if (typeof dictionary === 'undefined' || !Array.isArray(dictionary)) {
+                showMessage("Ошибка: файл words.js не загружен.");
+            }
+
+            if (typeof musicPlaylist === 'undefined' || !Array.isArray(musicPlaylist)) {
+                showMessage("Ошибка: файл music.js не загружен.");
+            } else {
+                loadTrack(0);
+            }
+
+            setBackgroundWithFade(0);
+            renderWallpaperPicker();
+
             const params = new URLSearchParams(window.location.search);
             const encodedWord = params.get('word');
             if (encodedWord) {
@@ -406,7 +556,6 @@
             }
         };
 
-        // --- Логика игры ---
         function startSinglePlayer() {
             if (typeof dictionary === 'undefined' || dictionary.length === 0) {
                 showMessage("Ошибка: словарь не загружен!");
@@ -424,22 +573,23 @@
         function initGame() {
             wordLength = targetWord.length;
             hideAll();
-            
+
             const board = document.getElementById('game-board');
             board.style.display = 'grid';
-            board.style.setProperty('--word-length', wordLength); 
-            
+            board.style.setProperty('--word-length', wordLength);
+
             document.getElementById('keyboard').style.display = 'flex';
             document.getElementById('back-btn').style.display = 'block';
-            
+            document.getElementById('main-container').classList.remove('menu-mode');
+
             currentRow = 0;
             currentCol = 0;
             gameOver = false;
             isAnimating = false;
-            
+
             buildBoard();
             buildKeyboard();
-            
+
             document.removeEventListener("keydown", handlePhysicalKeyboard);
             document.addEventListener("keydown", handlePhysicalKeyboard);
         }
@@ -479,7 +629,7 @@
                     keyEl.textContent = key;
                     keyEl.id = `key-${key}`;
                     if (key === "ENTER" || key === "⌫") keyEl.classList.add("large");
-                    
+
                     keyEl.onclick = () => handleInput(key);
                     rowEl.appendChild(keyEl);
                 });
@@ -525,9 +675,9 @@
 
         function showMessage(msg) {
             document.getElementById("message").textContent = msg;
-            if(msg !== "") {
+            if (msg !== "") {
                 setTimeout(() => {
-                    if(!gameOver) document.getElementById("message").textContent = "";
+                    if (!gameOver) document.getElementById("message").textContent = "";
                 }, 2000);
             }
         }
@@ -547,7 +697,7 @@
             for (let i = 0; i < wordLength; i++) {
                 if (guessLetters[i] === targetLetters[i]) {
                     colors[i] = "correct";
-                    targetLetters[i] = null; 
+                    targetLetters[i] = null;
                 }
             }
 
@@ -592,10 +742,10 @@
         function updateKeyboardColor(letter, colorClass) {
             const keyEl = document.getElementById(`key-${letter}`);
             if (!keyEl) return;
-            
+
             if (keyEl.classList.contains("correct")) return;
             if (keyEl.classList.contains("present") && colorClass === "absent") return;
-            
+
             keyEl.classList.remove("present", "absent", "correct");
             keyEl.classList.add(colorClass);
         }
