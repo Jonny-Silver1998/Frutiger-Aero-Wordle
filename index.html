@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Frutiger Wordle</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Varela+Round&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Varela Round', sans-serif;
+            background-color: #a3d9ff;
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            transition: background-image 0.5s ease-in-out;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #333;
+            overflow: hidden;
+        }
+
+        /* Glassmorphism Container */
+        .container {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 150, 255, 0.3);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 20px;
+            max-width: 95vw;
+        }
+
+        h1 {
+            color: #fff;
+            text-shadow: 0 0 10px rgba(0,150,255,0.8), 2px 2px 4px rgba(0,0,0,0.3);
+            margin-top: 20px;
+            font-size: 3rem;
+            text-align: center;
+        }
+
+        /* Bubble Buttons */
+        .menu {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 50px;
+        }
+
+        .bubble-btn {
+            width: 160px;
+            height: 160px;
+            background-image: url('https://imgpng.ru/d/soap_bubbles_PNG9.png');
+            background-size: 110%;
+            background-position: center;
+            background-color: transparent;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-family: 'Varela Round', sans-serif;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #005a8d;
+            text-shadow: 1px 1px 5px rgba(255,255,255,0.9);
+            transition: transform 0.3s ease, filter 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .bubble-btn:hover {
+            transform: translateY(-15px) scale(1.05);
+            filter: drop-shadow(0 15px 10px rgba(0,0,0,0.2));
+        }
+
+        /* Game Board */
+        #game-board {
+            display: none;
+            grid-template-rows: repeat(6, 1fr);
+            gap: 5px;
+            margin-bottom: 20px;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: repeat(var(--word-length, 5), 1fr);
+            gap: 5px;
+        }
+
+        .cell {
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.6);
+            border: 2px solid #b3e0ff;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            box-shadow: inset 0 0 10px rgba(255,255,255,0.5);
+        }
+
+        /* Colors for Wordle */
+        .correct { background: #8cd98c !important; color: white; border-color: #66cc66; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
+        .present { background: #ffe680 !important; color: white; border-color: #ffcc00; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
+        .absent { background: #b3b3b3 !important; color: white; border-color: #999; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
+
+        /* Virtual Keyboard */
+        #keyboard {
+            display: none;
+            flex-direction: column;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .key-row {
+            display: flex;
+            gap: 5px;
+        }
+
+        .key {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid #fff;
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            font-weight: bold;
+            font-family: inherit;
+            color: #333;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+
+        .key:active { transform: scale(0.95); }
+        .key.large { padding: 12px 15px; font-size: 0.9rem; }
+
+        /* Friend Mode Menu */
+        #friend-menu {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        input[type="text"] {
+            padding: 10px 15px;
+            border-radius: 20px;
+            border: 2px solid #66ccff;
+            font-size: 1.2rem;
+            outline: none;
+            background: rgba(255,255,255,0.8);
+            text-align: center;
+            font-family: 'Varela Round', sans-serif;
+            text-transform: uppercase;
+        }
+
+        .action-btn {
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: none;
+            background: linear-gradient(135deg, #66ccff, #0099ff);
+            color: white;
+            font-weight: bold;
+            font-size: 1.1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(0, 150, 255, 0.4);
+            font-family: inherit;
+        }
+        .action-btn:hover { background: linear-gradient(135deg, #33bbff, #0077cc); }
+
+        #link-output {
+            font-size: 0.9rem;
+            background: rgba(255,255,255,0.7);
+            padding: 10px;
+            border-radius: 10px;
+            word-break: break-all;
+            max-width: 300px;
+            text-align: center;
+            display: none;
+        }
+
+        #message {
+            margin-top: 15px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #005a8d;
+            min-height: 25px;
+            text-shadow: 0 0 5px white;
+        }
+
+        .back-btn {
+            margin-top: 20px;
+            display: none;
+            background: rgba(255, 255, 255, 0.5);
+            color: #333;
+            border: 1px solid #ccc;
+            padding: 5px 15px;
+            border-radius: 15px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        /* Notification */
+        .toast {
+            position: fixed;
+            top: 20px;
+            background: rgba(255,255,255,0.9);
+            padding: 10px 20px;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            font-weight: bold;
+            opacity: 0;
+            transition: opacity 0.3s;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Аудио элементы -->
+    <audio id="bg-music" loop>
+        <source src="https://www.dropbox.com/scl/fi/d9oxw4c1gh9jvf3g4ol7g/Mii-Editor-Mii-Maker-Wii-U-Music.mp3?rlkey=02gozi20og6da5zi979e8gh9t&st=zria9uzy&dl=1" type="audio/mpeg">
+    </audio>
+    <audio id="sound-bubble">
+        <source src="https://www.soundjay.com/misc/sounds/bubble-pop-01.mp3" type="audio/mpeg">
+    </audio>
+    <audio id="sound-end">
+        <source src="https://www.soundjay.com/misc/sounds/chime-up-01.mp3" type="audio/mpeg">
+    </audio>
+
+    <h1>Frutiger Wordle</h1>
+
+    <div class="container">
+        <div id="main-menu" class="menu">
+            <button class="bubble-btn" onclick="startSinglePlayer()">Одиночная<br>игра</button>
+            <button class="bubble-btn" onclick="openFriendMenu()">Слово<br>от друга</button>
+            <button class="bubble-btn" onclick="changeBackground()">Сменить<br>Фон</button>
+        </div>
+
+        <div id="friend-menu">
+            <h2>Загадать слово</h2>
+            <input type="text" id="friend-word" maxlength="15" placeholder="3–15 букв">
+            <button class="action-btn" onclick="generateLink()">Создать ссылку</button>
+            <div id="link-output"></div>
+            <button class="action-btn" onclick="copyLink()" id="copy-btn" style="display:none;">Копировать</button>
+        </div>
+
+        <div id="game-board"></div>
+        <div id="keyboard"></div>
+        <div id="message"></div>
+        
+        <button class="back-btn" id="back-btn" onclick="goToMenu()">В главное меню</button>
+    </div>
+
+    <div id="toast" class="toast">Скопировано!</div>
+
+    <script>
+        // --- Музыка и Звуки ---
+        function playBubble() {
+            const sound = document.getElementById("sound-bubble");
+            sound.currentTime = 0;
+            sound.play().catch(()=>{});
+        }
+
+        function playEndSound() {
+            const sound = document.getElementById("sound-end");
+            sound.currentTime = 0;
+            sound.play().catch(()=>{});
+        }
+
+        // Автозапуск музыки после первого клика где угодно
+        document.body.addEventListener('click', () => {
+            const music = document.getElementById("bg-music");
+            if (music.paused) {
+                music.volume = 0.5;
+                music.play().catch(()=>{});
+            }
+        }, { once: true });
+
+        // --- Фоны (из первого кода, но используем те же изображения) ---
+        const backgrounds = [
+            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_15.jpg",
+            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_10.jpg",
+            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_14.jpg",
+            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_17.jpg",
+            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_18.jpg",
+            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_30.jpg",
+            "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_57.jpg"
+        ];
+        let currentBgIndex = 0;
+        document.body.style.backgroundImage = `url('${backgrounds[currentBgIndex]}')`;
+
+        function changeBackground() {
+            currentBgIndex = (currentBgIndex + 1) % backgrounds.length;
+            document.body.style.backgroundImage = `url('${backgrounds[currentBgIndex]}')`;
+        }
+
+        // --- Словарь (из первого кода, все слова из 5 букв) ---
+        const dictionary = [
+            "акула", "банан", "весна", "город", "дверь", "жизнь", "замок", "искра", "капля", "лампа", 
+            "мысль", "насос", "океан", "песня", "речка", "сокол", "туман", "успех", "факел", "хаос", 
+            "цапля", "чайка", "шарик", "щепка", "элита", "юноша", "ягода", "ангел", "буква", "ветер", 
+            "голос", "дождь", "звезда", "идеал", "камень", "лимон", "мечта", "небо", "огонь", "птица", 
+            "рассвет", "солнце", "трава", "утро", "цветок", "яблоко", "арбуз", "билет", "вагон", "гараж", 
+            "диван", "жираф", "завод", "икона", "ковер", "лидер", "магия", "народ", "олень", "пакет", 
+            "радио", "салат", "танец", "улица", "фильм", "хлеб", "центр", "череп", "шляпа", "щит", 
+            "экран", "юмор", "якорь", "арена", "башня", "вирус", "гость", "доска", "жесть", "закон", 
+            "игрок", "книга", "лодка", "мотор", "налог", "опрос", "поезд", "ручка", "сезон", "текст", 
+            "уголь", "фрукт", "холод", "шрифт", "эфир", "юрист", "ящик", "актер", "багаж", "вздох", 
+            "глупо", "добро", "жюри", "закат", "исход", "кошка", "линия", "маска", "норма", "отдых", 
+            "полет", "робот", "свет", "театр", "ужас", "финал", "химия", "шпион", "этап", "юбилей", "ярость"
+        ];
+
+        // --- Игровые переменные ---
+        let targetWord = "";
+        let wordLength = 0;
+        let currentRow = 0;
+        let currentCol = 0;
+        let gameOver = false;
+        let isAnimating = false;
+        const maxGuesses = 6;
+
+        // --- Навигация ---
+        function hideAll() {
+            document.getElementById('main-menu').style.display = 'none';
+            document.getElementById('friend-menu').style.display = 'none';
+            document.getElementById('game-board').style.display = 'none';
+            document.getElementById('keyboard').style.display = 'none';
+            document.getElementById('back-btn').style.display = 'none';
+            document.getElementById('message').innerText = "";
+        }
+
+        function goToMenu() {
+            hideAll();
+            document.getElementById('main-menu').style.display = 'flex';
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
+        function openFriendMenu() {
+            hideAll();
+            document.getElementById('friend-menu').style.display = 'flex';
+            document.getElementById('back-btn').style.display = 'block';
+            document.getElementById('link-output').style.display = 'none';
+            document.getElementById('copy-btn').style.display = 'none';
+            document.getElementById('friend-word').value = '';
+        }
+
+        // --- Режим с другом ---
+        function generateLink() {
+            let word = document.getElementById('friend-word').value.toLowerCase().trim();
+            if (/\s/.test(word) || !/^[а-яё]+$/.test(word)) {
+                showMessage("Только русские буквы, без пробелов!");
+                return;
+            }
+            if (word.length < 3 || word.length > 15) {
+                showMessage("Слово должно быть от 3 до 15 букв!");
+                return;
+            }
+            
+            const encodedWord = btoa(encodeURIComponent(word));
+            const link = window.location.origin + window.location.pathname + "?word=" + encodedWord;
+            
+            const output = document.getElementById('link-output');
+            output.innerText = link;
+            output.style.display = 'block';
+            document.getElementById('copy-btn').style.display = 'inline-block';
+            showMessage("");
+        }
+
+        function copyLink() {
+            const linkText = document.getElementById('link-output').innerText;
+            navigator.clipboard.writeText(linkText).then(() => {
+                const toast = document.getElementById('toast');
+                toast.style.opacity = 1;
+                setTimeout(() => toast.style.opacity = 0, 2000);
+            });
+        }
+
+        window.onload = () => {
+            const params = new URLSearchParams(window.location.search);
+            const encodedWord = params.get('word');
+            if (encodedWord) {
+                try {
+                    const decodedWord = decodeURIComponent(atob(encodedWord));
+                    if (decodedWord.length >= 3 && decodedWord.length <= 15) {
+                        startCustomGame(decodedWord);
+                    }
+                } catch (e) {
+                    console.error("Неверный формат слова в ссылке");
+                }
+            }
+        };
+
+        // --- Логика игры ---
+        function startSinglePlayer() {
+            if (typeof dictionary === 'undefined' || dictionary.length === 0) {
+                showMessage("Ошибка: словарь не загружен!");
+                return;
+            }
+            targetWord = dictionary[Math.floor(Math.random() * dictionary.length)].toLowerCase();
+            initGame();
+        }
+
+        function startCustomGame(word) {
+            targetWord = word.toLowerCase();
+            initGame();
+        }
+
+        function initGame() {
+            wordLength = targetWord.length;
+            hideAll();
+            
+            const board = document.getElementById('game-board');
+            board.style.display = 'grid';
+            board.style.setProperty('--word-length', wordLength); 
+            
+            document.getElementById('keyboard').style.display = 'flex';
+            document.getElementById('back-btn').style.display = 'block';
+            
+            currentRow = 0;
+            currentCol = 0;
+            gameOver = false;
+            isAnimating = false;
+            
+            buildBoard();
+            buildKeyboard();
+            
+            document.removeEventListener("keydown", handlePhysicalKeyboard);
+            document.addEventListener("keydown", handlePhysicalKeyboard);
+        }
+
+        function buildBoard() {
+            const board = document.getElementById("game-board");
+            board.innerHTML = "";
+            for (let r = 0; r < maxGuesses; r++) {
+                const row = document.createElement("div");
+                row.className = "row";
+                row.id = `row-${r}`;
+                for (let c = 0; c < wordLength; c++) {
+                    const cell = document.createElement("div");
+                    cell.className = "cell";
+                    cell.id = `cell-${r}-${c}`;
+                    row.appendChild(cell);
+                }
+                board.appendChild(row);
+            }
+        }
+
+        function buildKeyboard() {
+            const keyboard = document.getElementById("keyboard");
+            keyboard.innerHTML = "";
+            const layout = [
+                ["й", "ц", "у", "к", "е", "н", "г", "ш", "щ", "з", "х", "ъ"],
+                ["ф", "ы", "в", "а", "п", "р", "о", "л", "д", "ж", "э"],
+                ["ENTER", "я", "ч", "с", "м", "и", "т", "ь", "б", "ю", "⌫"]
+            ];
+
+            layout.forEach(rowKeys => {
+                const rowEl = document.createElement("div");
+                rowEl.className = "key-row";
+                rowKeys.forEach(key => {
+                    const keyEl = document.createElement("button");
+                    keyEl.className = "key";
+                    keyEl.textContent = key;
+                    keyEl.id = `key-${key}`;
+                    if (key === "ENTER" || key === "⌫") keyEl.classList.add("large");
+                    
+                    keyEl.onclick = () => handleInput(key);
+                    rowEl.appendChild(keyEl);
+                });
+                keyboard.appendChild(rowEl);
+            });
+        }
+
+        function handlePhysicalKeyboard(e) {
+            if (gameOver || isAnimating) return;
+            const key = e.key.toLowerCase();
+            if (key === "enter") handleInput("ENTER");
+            else if (key === "backspace") handleInput("⌫");
+            else if (/^[а-яё]$/.test(key)) handleInput(key);
+        }
+
+        function handleInput(key) {
+            if (gameOver || isAnimating) return;
+
+            if (key === "⌫") {
+                if (currentCol > 0) {
+                    currentCol--;
+                    const cell = document.getElementById(`cell-${currentRow}-${currentCol}`);
+                    cell.textContent = "";
+                }
+                return;
+            }
+
+            if (key === "ENTER") {
+                if (currentCol === wordLength) {
+                    checkWord();
+                } else {
+                    showMessage("Заполните все пустые клетки");
+                }
+                return;
+            }
+
+            if (currentCol < wordLength) {
+                const cell = document.getElementById(`cell-${currentRow}-${currentCol}`);
+                cell.textContent = key;
+                currentCol++;
+            }
+        }
+
+        function showMessage(msg) {
+            document.getElementById("message").textContent = msg;
+            if(msg !== "") {
+                setTimeout(() => {
+                    if(!gameOver) document.getElementById("message").textContent = "";
+                }, 2000);
+            }
+        }
+
+        function checkWord() {
+            isAnimating = true;
+
+            let guess = "";
+            for (let c = 0; c < wordLength; c++) {
+                guess += document.getElementById(`cell-${currentRow}-${c}`).textContent;
+            }
+
+            let targetLetters = targetWord.split("");
+            let guessLetters = guess.split("");
+            let colors = new Array(wordLength).fill("absent");
+
+            for (let i = 0; i < wordLength; i++) {
+                if (guessLetters[i] === targetLetters[i]) {
+                    colors[i] = "correct";
+                    targetLetters[i] = null; 
+                }
+            }
+
+            for (let i = 0; i < wordLength; i++) {
+                if (colors[i] === "correct") continue;
+                let index = targetLetters.indexOf(guessLetters[i]);
+                if (index !== -1) {
+                    colors[i] = "present";
+                    targetLetters[index] = null;
+                }
+            }
+
+            for (let i = 0; i < wordLength; i++) {
+                setTimeout(() => {
+                    const cell = document.getElementById(`cell-${currentRow}-${i}`);
+                    cell.classList.add(colors[i]);
+                    updateKeyboardColor(guessLetters[i], colors[i]);
+                }, i * 200);
+            }
+
+            setTimeout(() => {
+                isAnimating = false;
+
+                if (guess === targetWord) {
+                    showMessage("Великолепно! 🎉");
+                    playEndSound();
+                    gameOver = true;
+                    return;
+                }
+
+                currentRow++;
+                currentCol = 0;
+
+                if (currentRow === maxGuesses) {
+                    showMessage(`Игра окончена! Было слово: ${targetWord.toUpperCase()}`);
+                    playEndSound();
+                    gameOver = true;
+                }
+            }, wordLength * 200 + 100);
+        }
+
+        function updateKeyboardColor(letter, colorClass) {
+            const keyEl = document.getElementById(`key-${letter}`);
+            if (!keyEl) return;
+            
+            if (keyEl.classList.contains("correct")) return;
+            if (keyEl.classList.contains("present") && colorClass === "absent") return;
+            
+            keyEl.classList.remove("present", "absent", "correct");
+            keyEl.classList.add(colorClass);
+        }
+    </script>
+</body>
+</html>
