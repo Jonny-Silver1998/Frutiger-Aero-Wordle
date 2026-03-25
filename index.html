@@ -896,10 +896,19 @@
                 const cfg = Object.assign({
                     id: `drag-${Math.random().toString(36).slice(2)}`,
                     handleCheck: () => true,
-                    holdToDrag: false
+                    holdToDrag: false,
+                    freezeImmediately: false
                 }, options || {});
                 el.dataset.draggableId = cfg.id;
                 applySavedPosition(el, cfg.id);
+                if (cfg.freezeImmediately && !savedPositions[cfg.id]) {
+                    const rect = el.getBoundingClientRect();
+                    el.style.position = "fixed";
+                    el.style.left = `${rect.left}px`;
+                    el.style.top = `${rect.top}px`;
+                    el.style.margin = "0";
+                    el.style.zIndex = "12";
+                }
 
                 let dragging = false;
                 let moved = false;
@@ -962,6 +971,7 @@
 
                 const onDown = (event) => {
                     const isTouch = event.type.startsWith("touch");
+                    if (!isTouch && event.button !== 0) return;
                     const point = {
                         x: isTouch ? event.touches[0].clientX : event.clientX,
                         y: isTouch ? event.touches[0].clientY : event.clientY
@@ -1001,7 +1011,17 @@
                 makeDraggable(bubbleBtn, {
                     id: `bubble-${idx}`,
                     holdToDrag: true,
-                    handleCheck: (_, event) => isOnOpaqueBubblePixel(bubbleBtn, event)
+                    freezeImmediately: true,
+                    handleCheck: (_, event) => {
+                        const rect = bubbleBtn.getBoundingClientRect();
+                        const x = (event.touches ? event.touches[0].clientX : event.clientX) - rect.left;
+                        const y = (event.touches ? event.touches[0].clientY : event.clientY) - rect.top;
+                        const cx = rect.width / 2;
+                        const cy = rect.height / 2;
+                        const radius = Math.min(rect.width, rect.height) * 0.46;
+                        const insideCircle = ((x - cx) ** 2 + (y - cy) ** 2) <= radius ** 2;
+                        return insideCircle && isOnOpaqueBubblePixel(bubbleBtn, event);
+                    }
                 });
             });
 
