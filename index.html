@@ -396,8 +396,7 @@
             if (bgMusic.paused) bgMusic.play().catch(()=>{});
         }, { once: true });
 
-const backgrounds = [
-            // Оригинальные фоны
+        const backgrounds = [
             "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_137.jpg",
             "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_142.jpg",
             "https://frutigeraeroarchive.org/images/wallpapers/asadal_stock/asadal_stock_134.jpg",
@@ -805,6 +804,8 @@ const backgrounds = [
         (function enhanceInteractions() {
             const BUBBLE_SOUND_URL = "https://www.dropbox.com/scl/fi/8cyp8dx5kwiqq2bq8lemk/zvuk-puzyr-ynhg9.mp3?rlkey=lvnn1ehpzjk52xc2rg90xqprg&st=e1y7jkmf&dl=1";
             const END_SOUND_URL = "https://www.dropbox.com/scl/fi/24n870y6mqoxlnlzszdos/zvuk-puzyr-tup.mp3?rlkey=hk5hk4e0iaq4x2bcx39ju9gox&st=jrcedp0w&dl=1";
+            const POSITIONS_KEY = "frutiger_wordle_positions_v1";
+            const DRAG_HOLD_MS = 180;
 
             const bubbleAudio = document.getElementById("sound-bubble");
             const endAudio = document.getElementById("sound-end");
@@ -821,13 +822,93 @@ const backgrounds = [
                 endAudio.play().catch(() => {});
             };
 
-            function makeDraggable(el, handleCheck) {
+            const savedPositions = (() => {
+                try {
+                    return JSON.parse(localStorage.getItem(POSITIONS_KEY) || "{}");
+                } catch (_) {
+                    return {};
+                }
+            })();
+
+            function clampToScreen(el, left, top) {
+                const maxX = window.innerWidth - el.offsetWidth;
+                const maxY = window.innerHeight - el.offsetHeight;
+                return {
+                    left: Math.min(Math.max(0, left), Math.max(0, maxX)),
+                    top: Math.min(Math.max(0, top), Math.max(0, maxY))
+                };
+            }
+
+            function persistPosition(id, left, top) {
+                savedPositions[id] = { left, top };
+                localStorage.setItem(POSITIONS_KEY, JSON.stringify(savedPositions));
+            }
+
+            function applySavedPosition(el, id) {
+                const p = savedPositions[id];
+                if (!p) return;
+                const clamped = clampToScreen(el, p.left, p.top);
+                el.style.position = "fixed";
+                el.style.left = `${clamped.left}px`;
+                el.style.top = `${clamped.top}px`;
+                el.style.margin = "0";
+                el.style.zIndex = "12";
+            }
+
+            function resetAllPositions() {
+                localStorage.removeItem(POSITIONS_KEY);
+                Object.keys(savedPositions).forEach((k) => delete savedPositions[k]);
+                document.querySelectorAll("[data-draggable-id]").forEach((el) => {
+                    el.style.position = "";
+                    el.style.left = "";
+                    el.style.top = "";
+                    el.style.margin = "";
+                    el.style.zIndex = "";
+                });
+            }
+
+            const bubbleSprite = new Image();
+            bubbleSprite.crossOrigin = "anonymous";
+            bubbleSprite.src = "https://imgpng.ru/d/soap_bubbles_PNG9.png";
+            const bubbleCanvas = document.createElement("canvas");
+            const bubbleCtx = bubbleCanvas.getContext("2d", { willReadFrequently: true });
+
+            function isOnOpaqueBubblePixel(btn, event) {
+                if (!bubbleSprite.complete || !bubbleSprite.naturalWidth) return true;
+                const rect = btn.getBoundingClientRect();
+                const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+                const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+                const relX = clientX - rect.left;
+                const relY = clientY - rect.top;
+                if (relX < 0 || relY < 0 || relX > rect.width || relY > rect.height) return false;
+
+                bubbleCanvas.width = Math.max(1, Math.floor(rect.width));
+                bubbleCanvas.height = Math.max(1, Math.floor(rect.height));
+                bubbleCtx.clearRect(0, 0, bubbleCanvas.width, bubbleCanvas.height);
+                bubbleCtx.drawImage(bubbleSprite, 0, 0, bubbleCanvas.width, bubbleCanvas.height);
+                const px = Math.floor(relX);
+                const py = Math.floor(relY);
+                const alpha = bubbleCtx.getImageData(px, py, 1, 1).data[3];
+                return alpha > 22;
+            }
+
+            function makeDraggable(el, options) {
+                const cfg = Object.assign({
+                    id: `drag-${Math.random().toString(36).slice(2)}`,
+                    handleCheck: () => true,
+                    holdToDrag: false
+                }, options || {});
+                el.dataset.draggableId = cfg.id;
+                applySavedPosition(el, cfg.id);
+
                 let dragging = false;
                 let moved = false;
                 let startX = 0;
                 let startY = 0;
                 let offsetX = 0;
                 let offsetY = 0;
+                let holdTimer = null;
+                let pendingStart = null;
 
                 const onMove = (event) => {
                     if (!dragging) return;
@@ -835,49 +916,65 @@ const backgrounds = [
                     const clientY = event.touches ? event.touches[0].clientY : event.clientY;
                     const nextX = clientX - offsetX;
                     const nextY = clientY - offsetY;
-
-                    const maxX = window.innerWidth - el.offsetWidth;
-                    const maxY = window.innerHeight - el.offsetHeight;
-                    el.style.left = `${Math.min(Math.max(0, nextX), Math.max(0, maxX))}px`;
-                    el.style.top = `${Math.min(Math.max(0, nextY), Math.max(0, maxY))}px`;
+                    const clamped = clampToScreen(el, nextX, nextY);
+                    el.style.left = `${clamped.left}px`;
+                    el.style.top = `${clamped.top}px`;
                     moved = moved || Math.abs(clientX - startX) > 4 || Math.abs(clientY - startY) > 4;
+                    if (event.cancelable) event.preventDefault();
                 };
 
-                const onUp = () => {
-                    if (!dragging) return;
-                    dragging = false;
+                const stopListeners = () => {
                     document.removeEventListener("mousemove", onMove);
                     document.removeEventListener("mouseup", onUp);
                     document.removeEventListener("touchmove", onMove);
                     document.removeEventListener("touchend", onUp);
+                };
+
+                const onUp = () => {
+                    if (holdTimer) clearTimeout(holdTimer);
+                    holdTimer = null;
+                    pendingStart = null;
+                    if (!dragging) return;
+                    dragging = false;
+                    stopListeners();
+                    persistPosition(cfg.id, parseFloat(el.style.left || "0"), parseFloat(el.style.top || "0"));
                     if (moved) setTimeout(() => { moved = false; }, 50);
                 };
 
-                const onDown = (event) => {
-                    const isTouch = event.type.startsWith("touch");
-                    const target = event.target;
-                    if (!handleCheck(target, event)) return;
-
-                    const clientX = isTouch ? event.touches[0].clientX : event.clientX;
-                    const clientY = isTouch ? event.touches[0].clientY : event.clientY;
+                const startDrag = (point) => {
                     const rect = el.getBoundingClientRect();
                     el.style.position = "fixed";
                     el.style.left = `${rect.left}px`;
                     el.style.top = `${rect.top}px`;
                     el.style.margin = "0";
                     el.style.zIndex = "12";
-
-                    startX = clientX;
-                    startY = clientY;
-                    offsetX = clientX - rect.left;
-                    offsetY = clientY - rect.top;
+                    startX = point.x;
+                    startY = point.y;
+                    offsetX = point.x - rect.left;
+                    offsetY = point.y - rect.top;
                     dragging = true;
                     moved = false;
-
                     document.addEventListener("mousemove", onMove);
                     document.addEventListener("mouseup", onUp);
                     document.addEventListener("touchmove", onMove, { passive: false });
                     document.addEventListener("touchend", onUp);
+                };
+
+                const onDown = (event) => {
+                    const isTouch = event.type.startsWith("touch");
+                    const point = {
+                        x: isTouch ? event.touches[0].clientX : event.clientX,
+                        y: isTouch ? event.touches[0].clientY : event.clientY
+                    };
+                    if (!cfg.handleCheck(event.target, event, point)) return;
+                    if (cfg.holdToDrag) {
+                        pendingStart = point;
+                        holdTimer = setTimeout(() => startDrag(point), DRAG_HOLD_MS);
+                        document.addEventListener("mouseup", onUp, { once: true });
+                        document.addEventListener("touchend", onUp, { once: true });
+                        return;
+                    }
+                    startDrag(point);
                 };
 
                 el.addEventListener("mousedown", onDown);
@@ -890,16 +987,73 @@ const backgrounds = [
                 }, true);
             }
 
-            document.querySelectorAll(".bubble-btn").forEach((bubbleBtn) => {
-                makeDraggable(bubbleBtn, () => true);
+            const settingsBubble = document.createElement("button");
+            settingsBubble.className = "bubble-btn";
+            settingsBubble.type = "button";
+            settingsBubble.innerHTML = "Настройки";
+            settingsBubble.onclick = () => {
+                playBubble();
+                settingsModal.classList.toggle("open");
+            };
+            document.getElementById("main-menu").appendChild(settingsBubble);
+
+            document.querySelectorAll(".bubble-btn").forEach((bubbleBtn, idx) => {
+                makeDraggable(bubbleBtn, {
+                    id: `bubble-${idx}`,
+                    holdToDrag: true,
+                    handleCheck: (_, event) => isOnOpaqueBubblePixel(bubbleBtn, event)
+                });
+            });
+
+            const settingsModal = document.createElement("div");
+            settingsModal.className = "music-context-menu";
+            settingsModal.innerHTML = `
+                <h4>Настройки</h4>
+                <div class="music-context-actions">
+                    <button id="reset-pos-btn" class="action-btn" type="button">Сбросить позиции окон/пузырей</button>
+                </div>
+            `;
+            document.body.appendChild(settingsModal);
+            settingsModal.style.left = "24px";
+            settingsModal.style.top = "24px";
+
+            settingsModal.querySelector("#reset-pos-btn").addEventListener("click", () => {
+                resetAllPositions();
+                playBubble();
+                settingsModal.classList.remove("open");
             });
 
             const mainContainer = document.getElementById("main-container");
-            makeDraggable(mainContainer, (target, event) => {
-                if (target.closest("button, input, #keyboard, #game-board, #friend-menu, #wallpaper-modal")) return false;
-                const rect = mainContainer.getBoundingClientRect();
-                const clientY = event.touches ? event.touches[0].clientY : event.clientY;
-                return clientY - rect.top <= 70;
+            makeDraggable(mainContainer, {
+                id: "main-container",
+                holdToDrag: true,
+                handleCheck: (target, event) => {
+                    if (target.closest("button, input, #keyboard, #game-board, #friend-menu")) return false;
+                    const rect = mainContainer.getBoundingClientRect();
+                    const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+                    return clientY - rect.top <= 70;
+                }
+            });
+
+            const wallpaperModal = document.getElementById("wallpaper-modal");
+            makeDraggable(wallpaperModal, {
+                id: "wallpaper-modal",
+                holdToDrag: true,
+                handleCheck: (_, event) => {
+                    const rect = wallpaperModal.getBoundingClientRect();
+                    const y = event.touches ? event.touches[0].clientY : event.clientY;
+                    return y - rect.top <= 64;
+                }
+            });
+
+            makeDraggable(settingsModal, {
+                id: "settings-modal",
+                holdToDrag: true,
+                handleCheck: (_, event) => {
+                    const rect = settingsModal.getBoundingClientRect();
+                    const y = event.touches ? event.touches[0].clientY : event.clientY;
+                    return y - rect.top <= 64;
+                }
             });
 
             const musicBubble = Array.from(document.querySelectorAll(".bubble-btn")).find((btn) =>
@@ -937,6 +1091,15 @@ const backgrounds = [
                 </div>
             `;
             document.body.appendChild(menu);
+            makeDraggable(menu, {
+                id: "music-menu",
+                holdToDrag: true,
+                handleCheck: (_, event) => {
+                    const rect = menu.getBoundingClientRect();
+                    const y = event.touches ? event.touches[0].clientY : event.clientY;
+                    return y - rect.top <= 64;
+                }
+            });
 
             const urlInput = menu.querySelector("#music-url-input");
             const applyNowCheck = menu.querySelector("#music-apply-now");
@@ -944,17 +1107,22 @@ const backgrounds = [
             const addBtn = menu.querySelector("#music-add-btn");
             const resetBtn = menu.querySelector("#music-reset-btn");
 
-            musicBubble.addEventListener("contextmenu", (event) => {
+            musicBubble.addEventListener("auxclick", (event) => {
+                if (event.button !== 1) return;
                 event.preventDefault();
                 playBubble();
-                menu.style.left = `${Math.min(event.clientX, window.innerWidth - menu.offsetWidth - 12)}px`;
-                menu.style.top = `${Math.min(event.clientY, window.innerHeight - 220)}px`;
+                const clamped = clampToScreen(menu, event.clientX, event.clientY);
+                menu.style.left = `${clamped.left}px`;
+                menu.style.top = `${clamped.top}px`;
                 menu.classList.toggle("open");
             });
 
             document.addEventListener("click", (event) => {
                 if (!menu.contains(event.target) && event.target !== musicBubble) {
                     menu.classList.remove("open");
+                }
+                if (!settingsModal.contains(event.target) && event.target !== settingsBubble) {
+                    settingsModal.classList.remove("open");
                 }
             });
 
