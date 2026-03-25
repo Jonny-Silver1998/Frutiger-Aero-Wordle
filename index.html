@@ -757,5 +757,238 @@ const backgrounds = [
             keyEl.classList.add(colorClass);
         }
     </script>
+
+    <style>
+        .music-context-menu {
+            position: fixed;
+            z-index: 30;
+            width: min(320px, 92vw);
+            background: rgba(210, 241, 255, 0.92);
+            border: 1px solid rgba(255, 255, 255, 0.95);
+            border-radius: 14px;
+            box-shadow: 0 10px 28px rgba(0, 106, 176, 0.35);
+            backdrop-filter: blur(8px);
+            padding: 12px;
+            display: none;
+        }
+
+        .music-context-menu.open { display: block; }
+        .music-context-menu h4 { margin: 0 0 8px; color: #005d8f; }
+        .music-context-menu input[type="url"] {
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 8px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid #76cfff;
+            font-family: inherit;
+        }
+
+        .music-context-menu label {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+            color: #014f7a;
+            align-items: center;
+        }
+
+        .music-context-actions {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 6px;
+            margin-top: 8px;
+        }
+    </style>
+
+    <script>
+        (function enhanceInteractions() {
+            const BUBBLE_SOUND_URL = "https://www.dropbox.com/scl/fi/8cyp8dx5kwiqq2bq8lemk/zvuk-puzyr-ynhg9.mp3?rlkey=lvnn1ehpzjk52xc2rg90xqprg&st=e1y7jkmf&dl=1";
+            const END_SOUND_URL = "https://www.dropbox.com/scl/fi/24n870y6mqoxlnlzszdos/zvuk-puzyr-tup.mp3?rlkey=hk5hk4e0iaq4x2bcx39ju9gox&st=jrcedp0w&dl=1";
+
+            const bubbleAudio = document.getElementById("sound-bubble");
+            const endAudio = document.getElementById("sound-end");
+            bubbleAudio.src = BUBBLE_SOUND_URL;
+            endAudio.src = END_SOUND_URL;
+
+            window.playBubble = function playBubbleOverride() {
+                bubbleAudio.currentTime = 0;
+                bubbleAudio.play().catch(() => {});
+            };
+
+            window.playEndSound = function playEndSoundOverride() {
+                endAudio.currentTime = 0;
+                endAudio.play().catch(() => {});
+            };
+
+            function makeDraggable(el, handleCheck) {
+                let dragging = false;
+                let moved = false;
+                let startX = 0;
+                let startY = 0;
+                let offsetX = 0;
+                let offsetY = 0;
+
+                const onMove = (event) => {
+                    if (!dragging) return;
+                    const clientX = event.touches ? event.touches[0].clientX : event.clientX;
+                    const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+                    const nextX = clientX - offsetX;
+                    const nextY = clientY - offsetY;
+
+                    const maxX = window.innerWidth - el.offsetWidth;
+                    const maxY = window.innerHeight - el.offsetHeight;
+                    el.style.left = `${Math.min(Math.max(0, nextX), Math.max(0, maxX))}px`;
+                    el.style.top = `${Math.min(Math.max(0, nextY), Math.max(0, maxY))}px`;
+                    moved = moved || Math.abs(clientX - startX) > 4 || Math.abs(clientY - startY) > 4;
+                };
+
+                const onUp = () => {
+                    if (!dragging) return;
+                    dragging = false;
+                    document.removeEventListener("mousemove", onMove);
+                    document.removeEventListener("mouseup", onUp);
+                    document.removeEventListener("touchmove", onMove);
+                    document.removeEventListener("touchend", onUp);
+                    if (moved) setTimeout(() => { moved = false; }, 50);
+                };
+
+                const onDown = (event) => {
+                    const isTouch = event.type.startsWith("touch");
+                    const target = event.target;
+                    if (!handleCheck(target, event)) return;
+
+                    const clientX = isTouch ? event.touches[0].clientX : event.clientX;
+                    const clientY = isTouch ? event.touches[0].clientY : event.clientY;
+                    const rect = el.getBoundingClientRect();
+                    el.style.position = "fixed";
+                    el.style.left = `${rect.left}px`;
+                    el.style.top = `${rect.top}px`;
+                    el.style.margin = "0";
+                    el.style.zIndex = "12";
+
+                    startX = clientX;
+                    startY = clientY;
+                    offsetX = clientX - rect.left;
+                    offsetY = clientY - rect.top;
+                    dragging = true;
+                    moved = false;
+
+                    document.addEventListener("mousemove", onMove);
+                    document.addEventListener("mouseup", onUp);
+                    document.addEventListener("touchmove", onMove, { passive: false });
+                    document.addEventListener("touchend", onUp);
+                };
+
+                el.addEventListener("mousedown", onDown);
+                el.addEventListener("touchstart", onDown, { passive: true });
+                el.addEventListener("click", (event) => {
+                    if (moved) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                }, true);
+            }
+
+            document.querySelectorAll(".bubble-btn").forEach((bubbleBtn) => {
+                makeDraggable(bubbleBtn, () => true);
+            });
+
+            const mainContainer = document.getElementById("main-container");
+            makeDraggable(mainContainer, (target, event) => {
+                if (target.closest("button, input, #keyboard, #game-board, #friend-menu, #wallpaper-modal")) return false;
+                const rect = mainContainer.getBoundingClientRect();
+                const clientY = event.touches ? event.touches[0].clientY : event.clientY;
+                return clientY - rect.top <= 70;
+            });
+
+            const musicBubble = Array.from(document.querySelectorAll(".bubble-btn")).find((btn) =>
+                String(btn.getAttribute("onclick") || "").includes("nextMusicTrack")
+            );
+            if (!musicBubble) return;
+
+            const defaultTracks = Array.isArray(musicPlaylist) ? [...musicPlaylist] : [];
+            let customExclusiveTrack = null;
+            let customLoop = false;
+            const oldNextTrack = window.nextMusicTrack;
+
+            window.nextMusicTrack = function patchedNextMusic(forcePlay = true) {
+                if (customExclusiveTrack) {
+                    bgMusic.loop = customLoop;
+                    bgMusic.src = customExclusiveTrack;
+                    if (forcePlay) bgMusic.play().catch(() => {});
+                    playBubble();
+                    return;
+                }
+                bgMusic.loop = false;
+                oldNextTrack(forcePlay);
+            };
+
+            const menu = document.createElement("div");
+            menu.className = "music-context-menu";
+            menu.innerHTML = `
+                <h4>Музыка пузыря</h4>
+                <input id="music-url-input" type="url" placeholder="Вставь ссылку на трек" />
+                <label><input id="music-apply-now" type="checkbox" /> Отключить текущие и поставить этот</label>
+                <label><input id="music-loop-track" type="checkbox" /> Зациклить этот трек</label>
+                <div class="music-context-actions">
+                    <button id="music-add-btn" class="action-btn" type="button">Добавить/Применить</button>
+                    <button id="music-reset-btn" class="action-btn" type="button">Удалить этот и вернуть music.js</button>
+                </div>
+            `;
+            document.body.appendChild(menu);
+
+            const urlInput = menu.querySelector("#music-url-input");
+            const applyNowCheck = menu.querySelector("#music-apply-now");
+            const loopCheck = menu.querySelector("#music-loop-track");
+            const addBtn = menu.querySelector("#music-add-btn");
+            const resetBtn = menu.querySelector("#music-reset-btn");
+
+            musicBubble.addEventListener("contextmenu", (event) => {
+                event.preventDefault();
+                playBubble();
+                menu.style.left = `${Math.min(event.clientX, window.innerWidth - menu.offsetWidth - 12)}px`;
+                menu.style.top = `${Math.min(event.clientY, window.innerHeight - 220)}px`;
+                menu.classList.toggle("open");
+            });
+
+            document.addEventListener("click", (event) => {
+                if (!menu.contains(event.target) && event.target !== musicBubble) {
+                    menu.classList.remove("open");
+                }
+            });
+
+            addBtn.addEventListener("click", () => {
+                const url = (urlInput.value || "").trim();
+                if (!url) return;
+                addMusicTrack(url);
+                if (applyNowCheck.checked) {
+                    customExclusiveTrack = url;
+                    customLoop = loopCheck.checked;
+                    bgMusic.loop = customLoop;
+                    bgMusic.src = customExclusiveTrack;
+                    bgMusic.play().catch(() => {});
+                }
+                menu.classList.remove("open");
+                playBubble();
+            });
+
+            resetBtn.addEventListener("click", () => {
+                customExclusiveTrack = null;
+                customLoop = false;
+                bgMusic.loop = false;
+                musicPlaylist.splice(0, musicPlaylist.length, ...defaultTracks);
+                if (musicPlaylist.length > 0) {
+                    loadTrack(0);
+                    bgMusic.play().catch(() => {});
+                }
+                urlInput.value = "";
+                applyNowCheck.checked = false;
+                loopCheck.checked = false;
+                menu.classList.remove("open");
+                playBubble();
+            });
+        })();
+    </script>
 </body>
 </html>
